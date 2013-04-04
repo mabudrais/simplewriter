@@ -1,3 +1,7 @@
+/**
+ *this code is distributed under BSD license
+ * @author mohamed elimam abudrais 
+ */
 package com.example;
 
 import com.sun.star.beans.PropertyValue;
@@ -25,10 +29,7 @@ import java.util.logging.Logger;
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
-/**
- *this code is distributed under BSD license
- * @author „Õ„œ «·«„«„ «»Ê÷—Ì” 
- */
+
 
 public class odf_document {
 
