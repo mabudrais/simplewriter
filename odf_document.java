@@ -103,15 +103,7 @@ public class odf_document {
      */
     public void insert_table(odf_table table) {
         try {
-            // Create a new table from the document's factory
-            XTextTable xTable = (XTextTable) UnoRuntime.queryInterface(
-                    XTextTable.class, mxDocFactory.createInstance(
-                    "com.sun.star.text.TextTable"));
-            int r = table.getRow_num();
-            int c = table.getCol_num();
-            xTable.initialize(r, c);
-            xText.insertControlCharacter(xTCursor, com.sun.star.text.ControlCharacter.PARAGRAPH_BREAK, false);
-            xText.insertTextContent(xTCursor, xTable, false);
+            XTextTable xTable = insert_emty_tabel(table);
             for (int x = 0; x < table.getCol_num(); x++) {
                 for (int y = 0; y < table.getRow_num(); y++) {
                     insertIntoCell(table.get_cell_name(y, x), table.get_cell_text(y, x), xTable, 0);
@@ -121,7 +113,19 @@ public class odf_document {
             System.out.print(e.getLocalizedMessage());
         }
     }
-
+   public void insert_write_left_table(odf_table table) {
+        try {
+            XTextTable xTable = insert_emty_tabel(table);
+            for (int x = 0; x < table.getCol_num(); x++) {
+                for (int y = 0; y < table.getRow_num(); y++) {
+                    int xrihgt=table.getCol_num()-x-1;
+                    insertIntoCell(table.get_cell_name(y, xrihgt), table.get_cell_text(y, x), xTable, 0);
+                }
+            }
+        } catch (Exception e) {
+            System.out.print(e.getLocalizedMessage());
+        }
+    }
     protected static void insertIntoCell(String sCellName, String sText,
             XTextTable xTable, int colour) {
         // Access the XText interface of the cell referred to by sCellName
@@ -318,5 +322,18 @@ public class odf_document {
 
 
         return xDesktop;
+    }
+
+    private XTextTable insert_emty_tabel(odf_table table) throws com.sun.star.uno.Exception, IllegalArgumentException {
+        // Create a new table from the document's factory
+        XTextTable xTable = (XTextTable) UnoRuntime.queryInterface(
+                XTextTable.class, mxDocFactory.createInstance(
+                "com.sun.star.text.TextTable"));
+        int r = table.getRow_num();
+        int c = table.getCol_num();
+        xTable.initialize(r, c);
+        xText.insertControlCharacter(xTCursor, com.sun.star.text.ControlCharacter.PARAGRAPH_BREAK, false);
+        xText.insertTextContent(xTCursor, xTable, false);
+        return xTable;
     }
 }
