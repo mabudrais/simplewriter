@@ -1,7 +1,8 @@
 simple writer is a java classes for creating an open office writer documents.
 it depends on oosdk.
-to use the lib (i assume you are using netbeans):
-1- install openoffice or (libreoffice)
+to use the lib (i assume you are using netbeans and ms windows):
+1- install openoffice or (libreoffice).
+2-be sure that you have jdk32 even if your system is 64
 2-download and install oosdk.
 3-run the setsdkenv_windows.bat.
 4-download and install OpenOffice.org API plugin for NetBeans.
