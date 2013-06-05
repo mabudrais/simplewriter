@@ -5,12 +5,15 @@
 package com.example;
 
 import com.sun.star.beans.PropertyValue;
+import com.sun.star.beans.PropertyVetoException;
+import com.sun.star.beans.UnknownPropertyException;
 import com.sun.star.beans.XPropertySet;
 import com.sun.star.comp.helper.BootstrapException;
 import com.sun.star.frame.XDispatchHelper;
 import com.sun.star.frame.XDispatchProvider;
 import com.sun.star.frame.XFrame;
 import com.sun.star.lang.IllegalArgumentException;
+import com.sun.star.lang.WrappedTargetException;
 import com.sun.star.lang.XMultiServiceFactory;
 import com.sun.star.style.ParagraphAdjust;
 import com.sun.star.text.HoriOrientation;
@@ -22,6 +25,8 @@ import com.sun.star.text.XTextCursor;
 import com.sun.star.text.XTextRange;
 import com.sun.star.text.XTextTable;
 import com.sun.star.uno.UnoRuntime;
+import java.awt.Color;
+import java.util.StringTokenizer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -41,10 +46,12 @@ public class odf_document {
     private XParagraphCursor xParagraphCursor = null;
     private com.sun.star.text.XText xText = null;
     private com.sun.star.text.XTextCursor xTCursor = null;
+    private  XDispatchHelper xglobalDispatchHelper ;
     public final int write_aligment = 1;
     public final int left_aligment = 2;
     public final int center_aligment = 3;
-
+    private XDispatchProvider xProvider;
+    
     public odf_document() {
 
         xDesktop = getDesktop();
@@ -74,24 +81,64 @@ public class odf_document {
         xTextDocument = createTextdocument(xDesktop);
         mxDocFactory = (XMultiServiceFactory) UnoRuntime.queryInterface(
                 XMultiServiceFactory.class, xTextDocument);
-        xParagraphCursor = (XParagraphCursor) UnoRuntime.queryInterface(XParagraphCursor.class, xTCursor);
         xText = xTextDocument.getText();
         xTCursor = xTextDocument.getText().createTextCursor();
+        xParagraphCursor = (XParagraphCursor) UnoRuntime.queryInterface(XParagraphCursor.class, xTCursor);
+          XFrame xFrame = xDesktop.getCurrentFrame();
+            //Query for the frame's DispatchProvider
+             xProvider = (XDispatchProvider) UnoRuntime.queryInterface(
+                    XDispatchProvider.class, xFrame);
+            XMultiServiceFactory xFactory = (XMultiServiceFactory) UnoRuntime.queryInterface(XMultiServiceFactory.class, xMCF);
+            Object dispatchHelper = null;
+        try {
+            dispatchHelper = xFactory.createInstance("com.sun.star.frame.DispatchHelper");
+        } catch (com.sun.star.uno.Exception ex) {
+            Logger.getLogger(odf_document.class.getName()).log(Level.SEVERE, null, ex);
+        }
+            xglobalDispatchHelper = (XDispatchHelper) UnoRuntime.queryInterface(
+                    XDispatchHelper.class, dispatchHelper);
     }
 
     public void insert_text(String txt) {
         try {
             xTextDocument.getText().insertString(xTCursor, txt, false);
-            xText.insertControlCharacter(xTCursor, com.sun.star.text.ControlCharacter.PARAGRAPH_BREAK, false);
-            set_font(txt);
-        } catch (IllegalArgumentException ex) {
+           // xText.insertControlCharacter(xTCursor, com.sun.star.text.ControlCharacter.PARAGRAPH_BREAK, false);
+           // set_font(txt);
+        } catch (Exception ex) {
             Logger.getLogger(odf_document.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
-
+   public void select_text_to_left(int num_char_to_select){
+       for(int i=0;i<num_char_to_select;i++){
+        PropertyValue[] bPropertyValues = new PropertyValue[2];
+            PropertyValue bPropertyValue1 = new PropertyValue();
+            PropertyValue bPropertyValue2 = new PropertyValue();
+            bPropertyValue1.Name="Count";
+            bPropertyValue1.Value=1;
+            bPropertyValue2.Name= "Select";
+            bPropertyValue2.Value=true;
+            bPropertyValues[0] = bPropertyValue1;
+            bPropertyValues[1] = bPropertyValue2;
+            xglobalDispatchHelper.executeDispatch(xProvider,  ".uno:GoLeft", "", 0, bPropertyValues);
+       }
+   }
+    public void select_text_to_write(int num_char_to_select){
+       for(int i=0;i<num_char_to_select;i++){
+        PropertyValue[] bPropertyValues = new PropertyValue[2];
+            PropertyValue bPropertyValue1 = new PropertyValue();
+            PropertyValue bPropertyValue2 = new PropertyValue();
+            bPropertyValue1.Name="Count";
+            bPropertyValue1.Value=1;
+            bPropertyValue2.Name= "Select";
+            bPropertyValue2.Value=true;
+            bPropertyValues[0] = bPropertyValue1;
+            bPropertyValues[1] = bPropertyValue2;
+            xglobalDispatchHelper.executeDispatch(xProvider,".uno:GoRight", "", 0, bPropertyValues);
+       }
+   }
     public void insert_paragraph(int aligment) {
         try {
-            xParagraphCursor.gotoNextParagraph(true);
+            xText.insertControlCharacter(xTCursor, com.sun.star.text.ControlCharacter.PARAGRAPH_BREAK, false);
         } catch (Exception ex) {
             Logger.getLogger(odf_document.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -103,6 +150,7 @@ public class odf_document {
      */
     public void insert_table(odf_table table) {
         try {
+            set_aligment(left_aligment);
             XTextTable xTable = insert_emty_tabel(table);
             for (int x = 0; x < table.getCol_num(); x++) {
                 for (int y = 0; y < table.getRow_num(); y++) {
@@ -119,7 +167,12 @@ public class odf_document {
             for (int x = 0; x < table.getCol_num(); x++) {
                 for (int y = 0; y < table.getRow_num(); y++) {
                     int xrihgt=table.getCol_num()-x-1;
-                    insertIntoCell(table.get_cell_name(y, xrihgt), table.get_cell_text(y, x), xTable, 0);
+                    if(table.get_cell_formula(y, x).length()==0) {
+                        insertIntoCell(table.get_cell_name(y, xrihgt), table.get_cell_text(y, x), xTable, 0);
+                    }else{
+                        String str=table.get_cell_formula(y,x);
+                        xTable.getCellByName(table.get_cell_name(y, xrihgt)).setFormula(str);
+                    }
                 }
             }
         } catch (Exception e) {
@@ -131,7 +184,6 @@ public class odf_document {
         // Access the XText interface of the cell referred to by sCellName
         XText xCellText = (XText) UnoRuntime.queryInterface(
                 XText.class, xTable.getCellByName(sCellName));
-
         // create a text cursor from the cells XText interface
         XTextCursor xCellCursor = xCellText.createTextCursor();
         // Get the property set of the cell's TextCursor
@@ -146,21 +198,72 @@ public class odf_document {
         // Set the text in the cell to sText
         xCellText.setString(sText);
     }
-
+ public void set_char_colour(Color c) {
+           PropertyValue[] bPropertyValues = new PropertyValue[1];
+            PropertyValue bPropertyValue1 = new PropertyValue();
+            bPropertyValue1.Name="FontColor";
+            bPropertyValue1.Value=c.getRGB();
+            bPropertyValues[0] = bPropertyValue1;
+            xglobalDispatchHelper.executeDispatch(xProvider,  ".uno:FontColor", "", 0, bPropertyValues);
+        }
+ public void set_para_font(String font_name) {
+     XPropertySet xparaProps = (XPropertySet) UnoRuntime.queryInterface(XPropertySet.class, xParagraphCursor);
+        try {
+            xparaProps.setPropertyValue("CharFontName",font_name);
+        } catch (UnknownPropertyException ex) {
+            Logger.getLogger(odf_document.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (PropertyVetoException ex) {
+            Logger.getLogger(odf_document.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (IllegalArgumentException ex) {
+            Logger.getLogger(odf_document.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (WrappedTargetException ex) {
+            Logger.getLogger(odf_document.class.getName()).log(Level.SEVERE, null, ex);
+        }
+ }
     public void set_font(String font_name) {
         try {
-            XPropertySet xCursorProps = (XPropertySet) UnoRuntime.queryInterface(XPropertySet.class, xTCursor);
-            xCursorProps.setPropertyValue("CharFontName", "Calibri");
-            xCursorProps.setPropertyValue("ParaAdjust", ParagraphAdjust.CENTER);
-            System.out.println(xCursorProps.getPropertyValue("CharFontName"));
+             PropertyValue[] bPropertyValues = new PropertyValue[5];
+            PropertyValue bPropertyValue1 = new PropertyValue();
+            PropertyValue bPropertyValue2 = new PropertyValue();
+            PropertyValue bPropertyValue3 = new PropertyValue();
+            PropertyValue bPropertyValue4 = new PropertyValue();
+            PropertyValue bPropertyValue5 = new PropertyValue();
+            bPropertyValues[0] = bPropertyValue1;
+            bPropertyValues[1] = bPropertyValue2;
+            bPropertyValues[2] = bPropertyValue3;
+            bPropertyValues[3] = bPropertyValue4;
+            bPropertyValues[4] = bPropertyValue5;
+            bPropertyValue1.Name = "CharFontName.StyleName";
+            bPropertyValue1.Value = "";
+            bPropertyValue2.Name = "CharFontName.Pitch";
+            bPropertyValue2.Value = 2;
+            bPropertyValue3.Name =  "CharFontName.CharSet";
+            bPropertyValue3.Value = -1;
+            bPropertyValue4.Name =  "CharFontName.Family";
+            bPropertyValue4.Value = 5;
+            bPropertyValue5.Name = "CharFontName.FamilyName";
+            bPropertyValue5.Value = font_name;
+            xglobalDispatchHelper.executeDispatch(xProvider,  ".uno:CharFontName", "", 0, bPropertyValues);
         } catch (Exception ex) {
         }
     }
 
     public void set_char_hight(int hight) {
         try {
-            XPropertySet xCursorProps = (XPropertySet) UnoRuntime.queryInterface(XPropertySet.class, xTCursor);
-            xCursorProps.setPropertyValue("CharHeight", new Integer(hight));
+            PropertyValue[] bPropertyValues = new PropertyValue[3];
+            PropertyValue bPropertyValue1 = new PropertyValue();
+            PropertyValue bPropertyValue2 = new PropertyValue();
+            PropertyValue bPropertyValue3 = new PropertyValue();
+            bPropertyValue1.Name = "FontHeight.Height";
+            bPropertyValue1.Value = hight;
+            bPropertyValue2.Name = "FontHeight.Prop";
+            bPropertyValue2.Value = 100;
+            bPropertyValue3.Name = "FontHeight.Diff";
+            bPropertyValue3.Value = hight;
+            bPropertyValues[0] = bPropertyValue1;
+            bPropertyValues[1] = bPropertyValue2;
+            bPropertyValues[2] = bPropertyValue3;
+            xglobalDispatchHelper.executeDispatch(xProvider, ".uno:FontHeight", "", 0, bPropertyValues);
         } catch (Exception ex) {
         }
     }
@@ -183,7 +286,9 @@ public class odf_document {
     }
 
     public void insert_image(int x, int y,int w,int h,String file_name) {
+        
         try {
+            //Thread.sleep(50);
             Object oGraphic = null;
             oGraphic = mxDocFactory.createInstance("com.sun.star.text.TextGraphicObject");
             com.sun.star.text.XTextContent xTextContent =
@@ -206,6 +311,12 @@ public class odf_document {
             xPropSet.setPropertyValue("GraphicURL", sUrl.toString());
             WrapTextMode oWTM = null; // Choose among WrapTextMode elements 
             xPropSet.setPropertyValue("TextWrap", oWTM);
+          /* com.sun.star.table.ShadowFormat[] a= new com.sun.star.table.ShadowFormat[1];
+            a[0].Location=com.sun.star.table.ShadowLocation.BOTTOM_LEFT;
+            a[0].IsTransparent=false;
+            a[0].ShadowWidth=500;
+            a[0].Color=new Integer(8421504);
+            xPropSet.setPropertyValue("ParaShadowFormat",a[0]);*/
             // xPropSet.setPropertyValue("HoriOrient", HoriOrientation.NONE); 
             //xPropSet.setPropertyValue("VertOrient", VertOrientation.NONE);
             //xPropSet.setPropertyValue( "HoriOrientPosition",  new Integer( 15500 ) );

@@ -37,6 +37,9 @@ public ArrayList<Cell> cells= new <Cell>ArrayList();
    public String get_cell_text(int row,int col){
        return cells.get(row*col_num+col).text;
   }
+    public String get_cell_formula(int row,int col){
+       return cells.get(row*col_num+col).formula;
+  }
   public void set_colomn_width(int colomn,int width){
       for(int i=0;i<row_num;i++){
           cells.get(i*col_num+colomn).width=width;
@@ -55,10 +58,15 @@ public ArrayList<Cell> cells= new <Cell>ArrayList();
         return result;
   }
   public void set_cell_formula(int row,int col,String str){
-      
+      cells.get(row*col_num+col).formula =str;
   }
   private class Cell {
       public int width;
+
+        public Cell() {
+            this.text = new String();
+            this.formula = new String();
+        }
       public String text;
       public int r;
       public int g;
